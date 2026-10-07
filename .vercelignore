@@ -1,0 +1,6 @@
+docs/
+tests/
+fixtures/
+tools/
+README.md
+.env.example

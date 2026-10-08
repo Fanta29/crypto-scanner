@@ -54,4 +54,18 @@ for (const [nom, chemin, p] of [
 ]) {
   writeFileSync(`${dir}/${nom}.json`, await get(`${BASE}${chemin}?${new URLSearchParams({ ...p, user })}`));
 }
+// États de résolution des marchés simples tradés (20 conditions au plus par appel)
+{
+  const lignes = [];
+  for (const f of (await import("node:fs")).readdirSync(dir).filter(f => f.startsWith("activity-desc-p")))
+    lignes.push(...JSON.parse((await import("node:fs")).readFileSync(`${dir}/${f}`, "utf8")).data);
+  const conds = [...new Set(lignes.filter(r => r.condition_id && !r.is_combo).map(r => r.condition_id))].sort();
+  const toutes = [];
+  for (let i = 0; i < conds.length; i += 20) {
+    const t = await get(`${BASE}/v2/resolutions?${new URLSearchParams({ condition: conds.slice(i, i + 20).join(",") })}`);
+    toutes.push(...JSON.parse(t).data);
+  }
+  writeFileSync(`${dir}/resolutions.json`, JSON.stringify({ data: toutes }));
+  console.log("résolutions :", toutes.length, "pour", conds.length, "conditions");
+}
 console.log("terminé :", dir);

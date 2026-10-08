@@ -31,3 +31,32 @@ for (const [nom, contrat] of Object.entries(JETONS)) {
   console.log(nom, total);
   await pause(400);
 }
+// Transferts ERC-1155 (parts : Conditional Tokens et PositionManager, éventuels jetons tiers)
+{
+  let page = 1, total = 0;
+  for (;;) {
+    const q = new URLSearchParams({ chainid: "137", module: "account", action: "token1155tx",
+      address: user, page: String(page), offset: "1000", sort: "asc", apikey: KEY });
+    const texte = await (await fetch(`https://api.etherscan.io/v2/api?${q}`)).text();
+    const j = JSON.parse(texte);
+    if (j.status !== "1" && j.message !== "No transactions found") throw new Error(texte);
+    const n = Array.isArray(j.result) ? j.result.length : 0;
+    writeFileSync(`${dir}/token1155tx-p${page}.json`, texte);
+    total += n;
+    if (n < 1000) break;
+    page++; await pause(400);
+  }
+  console.log("erc1155", total);
+}
+// Soldes au moment de la capture (unités de base)
+{
+  const soldes = { capturesLe: new Date().toISOString() };
+  for (const [nom, contrat] of Object.entries(JETONS)) {
+    const q = new URLSearchParams({ chainid: "137", module: "account", action: "tokenbalance",
+      contractaddress: contrat, address: user, tag: "latest", apikey: KEY });
+    soldes[nom] = JSON.parse(await (await fetch(`https://api.etherscan.io/v2/api?${q}`)).text()).result;
+    await pause(400);
+  }
+  writeFileSync(`${dir}/soldes.json`, JSON.stringify(soldes));
+  console.log("soldes", soldes);
+}

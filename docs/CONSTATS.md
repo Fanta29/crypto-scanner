@@ -113,7 +113,7 @@ Marchés distincts : 635 jetons tradés (338 simples, 297 combinés), contre 629
 
 ## 7. Retard d'agrégation des chiffres Polymarket
 
-En direct (8 octobre, 18 h 45 heure de Paris), un trade passé 2 minutes plus tôt figurait dans
+En direct (8 octobre, 18 h 45 heure de Paris), un trade du jour même (16:45:03 UTC) figurait dans
 `/v2/activity` mais pas encore dans `/v2/user-volume` (833 trades contre 832). L'outil cherche
 alors si l'écart correspond exactement aux *k* trades les plus récents : c'était le cas (k = 1),
 le contrôle est marqué « expliqué » avec la transaction en cause, jamais « conforme ».

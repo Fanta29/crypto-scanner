@@ -1,6 +1,8 @@
 # Identité visuelle — extraite du site Formation Finance & Fiscalité
 
-> **Statut : soumis à validation, non appliqué.**
+> **Statut : validé le 2026-10-08 et appliqué** (sombre uniquement comme le site ; page
+> imprimable en feuille claire sur le modèle du mode lecture). `assets/css/app.css` est la copie
+> conforme de celle du site ; les ajouts sont dans `assets/css/scanner.css`.
 > Source analysée en lecture seule : dépôt `Fanta29/formation-finance`, fichiers
 > `assets/css/app.css` (339 lignes), `assets/js/ui.js`, `assets/icone.svg`, pages HTML.
 > Aucun fichier de ce dépôt n'a été modifié.

@@ -1,6 +1,11 @@
 # Plan — phase 1 : Polymarket sur Polygon
 
-> **Statut : version 2, soumise à validation. Rien n'est encore implémenté.**
+> **Statut : version 2, validée le 2026-10-08 et implémentée.** Décisions retenues (§ 13) :
+> YIELD → REWARD (sous-type conservé) ; TIP → DEPOT / RETRAIT avec contrepartie ; split réparti
+> à parts égales faute de prix de marché ; catégories TRANSFERT_INTERNE et MIGRATION ajoutées ;
+> récap annuel en heure de Paris ; fixtures réelles hors dépôt public. Écarts entre ce plan et
+> l'implémentation, dictés par les données réelles : voir `docs/CONSTATS.md` (§ 6 à 8) — notamment
+> les positions résolues non rachetées, valorisées à part.
 > Établi après lecture de la documentation officielle et d'appels réels (voir
 > `docs/SOURCES.md` et `docs/CONSTATS.md`). Les faisabilités clés sont **démontrées sur
 > l'adresse de test** : historique complet, volume Polymarket recalculé à l'unité près,

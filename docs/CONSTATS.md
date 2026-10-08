@@ -81,20 +81,71 @@ comptés autrement). L'événement on-chain `FeeCharged` permettra de trancher.
   `0xd15f…80e3` par `disperseToken`, jamais convertis : invisibles dans les chiffres
   Polymarket, présents sur le wallet. **Nature à préciser par l'utilisateur.**
 
-## 6. Positions
+## 6. Positions et parts
 
-- 635 jetons distincts tradés (338 marchés simples, 297 combinés) ; `/v2/user-stats` annonce
-  629 marchés distincts : **écart de 6 non expliqué**.
-- Parts achetées − vendues − rachetées comparées à `/v2/positions` : 124 cohérentes,
-  511 non. Causes déjà identifiées : `current_size` arrondi à 4 décimales ; positions combinées
-  servies par un autre endpoint ; positions perdantes jamais rachetées. Le contrôle sera fait
-  contre les **soldes ERC-1155 on-chain**, pas contre l'API.
+Premier relevé (avant implémentation) : parts achetées − vendues − rachetées selon l'API,
+comparées à `/v2/positions`, ne concordaient que pour 124 positions sur 635. Toutes les causes
+ont été identifiées ; avec les règles qui en découlent, **711 positions sur 711 concordent avec
+les transferts ERC-1155 on-chain** :
 
-## 7. PnL
+1. **Un REDEEM de marché simple a un `token_id` vide** (71 lignes sur 131) : il ne porte que
+   `condition_id` et le libellé de l'issue gagnante, alors que la transaction détruit toutes les
+   parts de la condition (issue perdante comprise, souvent pour 0).
+2. **Le `size` d'un REDEEM est le paiement, pas les parts détruites** : égal à `usdc_size` dans
+   129 cas sur 131 ; un combiné à paiement partiel (0,5 par part) détruit 453,93 parts pour un
+   `size` de 226,97. Les parts détruites sont donc prises on-chain.
+3. **Un rachat perdant manque dans la Data API** : transaction `0x328264a5…` (18/07), 532,14
+   parts remises au `CtfCollateralAdapter` sans paiement. Recréé depuis la chaîne
+   (REDEEM_PERDANT, origine « onchain »). Deux autres transactions on-chain sans ligne d'API ne
+   déplacent que des montants nuls : listées, sans effet.
+4. **Positions perdantes jamais rachetées** : 201 combinés et 126 positions simples restent sur
+   le wallet à valeur 0. Elles ne sont « soldées » par aucune opération ; leur perte est
+   constatée à la date de résolution (§ 8).
+5. **`/v2/positions` arrondit `current_size` à 4 décimales**, range les reliquats en `CLOSED`, et
+   **omet 5 reliquats** de quelques millièmes de part pourtant détenus on-chain. Les filtres de
+   statut se recouvrent (OPEN contient les REDEEMABLE).
+6. **Résolutions UMA** : pour 18 marchés, `/v2/resolutions` renvoie un champ `price` (échelle non
+   documentée) au lieu du vecteur `payouts`. Il n'est pas interprété ; la valeur retenue est le
+   prix publié par `/v2/positions`, signalé comme tel.
 
-Polymarket (`/v2/user-stats`, 2026-10-08) : réalisé marchés −3 398,34 ; réalisé combinés
-−4 569,80 ; non réalisé −276,58 ; frais −3 568,76 ; rebates +16,95 ; « economic PnL »
-−8 227,76. Le **−2 760,88** du cahier des charges ne correspond à aucune composition de la
-série journalière autour du 29–30 septembre (recherche systématique sur 1 à 3 champs) :
-probablement un relevé intrajournalier ou une période filtrée sur le profil. **Non expliqué
-de façon prouvée** ; il sera comparé au PnL calculé par l'outil, champ par champ.
+Marchés distincts : 635 jetons tradés (338 simples, 297 combinés), contre 629 « trades » dans
+`/v2/user-stats` : écart de 6 non expliqué, la définition de Polymarket n'étant pas documentée.
+
+## 7. Retard d'agrégation des chiffres Polymarket
+
+En direct (8 octobre, 18 h 45 heure de Paris), un trade passé 2 minutes plus tôt figurait dans
+`/v2/activity` mais pas encore dans `/v2/user-volume` (833 trades contre 832). L'outil cherche
+alors si l'écart correspond exactement aux *k* trades les plus récents : c'était le cas (k = 1),
+le contrôle est marqué « expliqué » avec la transaction en cause, jamais « conforme ».
+
+## 8. Résultat (PnL) et écart avec Polymarket
+
+Résultat calculé par l'outil sur la capture du 8 octobre (16 h 31 UTC), détail dans
+`docs/RAPPORT-ADRESSE-TEST.md` :
+
+| Rubrique | Outil | Polymarket (`/v2/user-stats`, 15 h 44 UTC) |
+|---|---|---|
+| Réalisé par opérations | +60 967,28 $ | — |
+| Positions résolues non rachetées | −71 031,08 $ | — |
+| Réalisé total | −10 063,81 $ | `realized_pnl` −7 968,13 $ |
+| dont marchés simples | −3 750,17 $ | `realized_market_pnl` −3 398,34 $ |
+| dont combinés | −6 313,64 $ | `realized_combo_pnl` −4 569,80 $ |
+| Latent | −22,03 $ | `unrealized_pnl` −276,58 $ |
+| Remises | +23,19 $ | `wallet_income` +16,95 $ |
+| **Total** | **−10 062,65 $** | `economic_pnl` −8 227,76 $ |
+
+**Pourquoi le chiffre de l'outil est retenu** : il se vérifie par une identité comptable
+indépendante de toute méthode. Dépôts pUSD (30 711,47 $) − retraits (20 615,00 $) − solde pUSD
+(0,16 $) = **10 096,31 $ sortis de l'activité** ; augmentés de la valeur des parts encore
+détenues (33,66 $), on obtient exactement −10 062,65 $. Pour les combinés, tous résolus, le
+résultat est simplement les espèces nettes : 65 310,06 $ payés, 20 897,48 $ de ventes et
+38 098,94 $ de rachats, soit −6 313,64 $, chaque montant étant rapproché on-chain.
+
+**L'écart avec Polymarket** (environ 1 835 $ au total, dont 1 744 $ sur les combinés) n'est pas
+attribuable à une cause unique prouvée : Polymarket ne documente pas la composition de ses
+rubriques. Le **−2 760,88 $ du cahier des charges** ne correspond à aucune combinaison de la
+série journalière de Polymarket autour du 29–30 septembre ; c'était probablement un relevé
+intrajournalier. Il n'est pas expliqué de façon prouvée.
+
+Les frais implicites (3 585,55 $) dépassent de 16,79 $ le `fees_paid` de Polymarket ; écart non
+expliqué, sans effet sur le résultat de l'outil qui repose sur les espèces réellement déplacées.

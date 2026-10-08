@@ -91,8 +91,10 @@ sans arrondi intermédiaire.
 ## Limites connues
 
 - **Régime fiscal** non choisi (jeux, BNC, actifs numériques…) : à décider avec un professionnel.
-- **Positions au 31 décembre** d'une année close : non valorisées dans cette version (il faudrait
-  les prix à cette date, disponibles via `/v2/prices-history?as_of=`, non branchés).
+- **Positions à une date** (31 décembre d'une année close, ou toute date) : valeur de résolution
+  si le marché était tranché, sinon dernier prix publié à cette date (`/v2/prices-history`,
+  `as_of`). Les **combinés n'ont pas d'historique de prix** : non tranchés à la date choisie, ils
+  restent « non valorisés », avec leur coût restant affiché.
 - **Provenance des dépôts** : les dépôts Polymarket arrivent en pUSD frappé sur le wallet ; leur
   origine (plateforme, compte) n'est pas lisible sur Polygon. Pour un retrait, la contrepartie est
   l'adresse de sortie sur Polygon (souvent un pont), pas la destination finale.

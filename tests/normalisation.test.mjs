@@ -122,3 +122,21 @@ test("volume : écart dû aux trades les plus récents non encore agrégés par 
   b.volume = { volume: 150, volume_usdc: 40, trade_count: 1 };     // écart sans explication exacte → reste en écart
   assert.equal(controler(b, n, calculerPositions(n.evenements)).find(x => x.id === "volume_parts").statut, "ecart");
 });
+
+test("valoriseur : résolution antérieure → valeur de résolution ; sinon prix as_of ; sinon rien", async () => {
+  const pm = await import("../assets/js/scanner/connecteurs/polymarket-polygon/index.js");
+  const { fauxTransport } = await import("./aides/transport.mjs");
+  const b = bruts({ activite: [achat(1), ligne(2, { type: "TRADE", side: "BUY", size: 1, usdc_size: 1, price: 1, token_id: "333", condition_id: "0x" + "d".repeat(64), outcome: "X", outcome_index: 0 })] });
+  b.resolutions = [{ condition_id: COND, status: "resolved", payouts: [1000000, 0], resolved_at: "2026-07-01T00:00:00Z" }];
+  b.positions = { OPEN: [], CLOSED: [] }; b.positionsCombos = [];
+  const t = fauxTransport(u => ({ body: { data: u.searchParams.get("token_id") === "333" ? [{ timestamp: 100, price: 0.42 }] : [], pagination: { has_more: false, next_cursor: null } } }));
+  const val = pm.valoriseur(b, { transport: t });
+  const apres = Date.parse("2026-07-02T00:00:00Z") / 1000, avant = Date.parse("2026-06-30T00:00:00Z") / 1000;
+  let m = await val(["ctf:111", "ctf:333", "v2:999"], apres);
+  assert.equal(m.get("ctf:111").valeurUnitaire.toString(), "1");
+  assert.equal(m.get("ctf:111").source, "valeur de résolution");
+  assert.equal(m.get("ctf:333").valeurUnitaire.toString(), "0.42");
+  assert.equal(m.has("v2:999"), false);
+  m = await val(["ctf:111"], avant);                          // pas encore résolu à cette date → prix as_of (absent ici)
+  assert.equal(m.has("ctf:111"), false);
+});

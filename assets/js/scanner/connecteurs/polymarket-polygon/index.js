@@ -133,3 +133,33 @@ export function prixCourants(bruts) {
 }
 
 export { normaliser, controler };
+
+/**
+ * Valeur unitaire de chaque actif à un instant : valeur de résolution si le marché était déjà
+ * tranché à cet instant, sinon dernier prix publié à cet instant ou avant (/v2/prices-history,
+ * paramètre as_of). Les combinés n'ont pas d'historique de prix : ils restent sans valeur
+ * (affichés au coût restant, comme le fait /v2/value pour les combinés non résolus).
+ */
+export function valoriseur(bruts, { transport, signal, parallele = 4 } = {}) {
+  const etats = etatsResolution(bruts);
+  return async (actifs, horodatage) => {
+    const resultat = new Map(), aDemander = [];
+    for (const a of actifs) {
+      const e = etats.get(a);
+      if (e?.resolu && e.valeurUnitaire && e.resoluLe !== null && e.resoluLe <= horodatage) {
+        resultat.set(a, { valeurUnitaire: e.valeurUnitaire, source: "valeur de résolution", observeLe: e.resoluLe });
+      } else if (a.startsWith("ctf:") || a.startsWith("v2:")) aDemander.push(a);
+    }
+    let i = 0;
+    const travail = async () => {
+      while (i < aDemander.length) {
+        const a = aDemander[i++];
+        const pts = await dataApi.prixA(a.split(":")[1], horodatage, { transport, signal });
+        const p = Array.isArray(pts) ? pts.filter(x => x.timestamp <= horodatage).at(-1) : null;
+        if (p && typeof p.price === "number") resultat.set(a, { valeurUnitaire: Dec.de(p.price), source: "data-api/v2/prices-history (as_of)", observeLe: p.timestamp });
+      }
+    };
+    await Promise.all(Array.from({ length: parallele }, travail));
+    return resultat;
+  };
+}

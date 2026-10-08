@@ -14,6 +14,7 @@ import * as connecteur from "./scanner/connecteurs/polymarket-polygon/index.js";
 import { clientEtherscan } from "./scanner/sources/etherscan.js";
 import { chargerTaux } from "./scanner/sources/bce.js";
 import { analyser } from "./scanner/analyse.js";
+import { evaluerAu } from "./scanner/evaluation.js";
 import { recapitulatifs } from "./scanner/fiscal.js";
 import { dateDans } from "./scanner/modele.js";
 import * as store from "./store.js";
@@ -79,7 +80,8 @@ async function lancer({ adresse, mesAdresses, seuil, rafraichir }) {
     if (erreurTaux) zone("cs-erreur").innerHTML += `<div class="alerte"><b>Taux BCE indisponibles :</b> ${html(erreurTaux)}. Les montants en euros ne sont pas calculés.</div>`;
     zone("cs-reconciliation").innerHTML = reconciliation(a);
     zone("cs-synthese").innerHTML = synthese(a);
-    fiscalVue(zone("cs-fiscal"), a, recaps, { surImpression: () => {
+    const valoriseur = connecteur.valoriseur(bruts, { signal: ctrl.signal });
+    fiscalVue(zone("cs-fiscal"), a, recaps, { valoriser: ts => evaluerAu(a.evenements, ts, valoriseur), surImpression: () => {
       document.body.classList.add("cs-impression");
       document.querySelectorAll(".cs-imprimable details").forEach(d => (d.open = true));
       addEventListener("afterprint", () => document.body.classList.remove("cs-impression"), { once: true });

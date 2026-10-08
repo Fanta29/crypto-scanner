@@ -48,3 +48,9 @@ test("récapitulatif : conversion opération par opération, valeurs recalculée
   assert.ok(r.avertissement.includes("pas un conseil fiscal"));
   assert.ok(r.pointsAVerifier.some(p => p.includes("3916")));
 });
+
+test("fin de journée à Paris : heure d'hiver et heure d'été", async () => {
+  const { finDeJourneeParis } = await import("../assets/js/ui/fiscal-vue.js");
+  assert.equal(new Date(finDeJourneeParis("2026-12-31") * 1000).toISOString(), "2026-12-31T22:59:59.000Z");   // UTC+1
+  assert.equal(new Date(finDeJourneeParis("2026-09-30") * 1000).toISOString(), "2026-09-30T21:59:59.000Z");   // UTC+2
+});

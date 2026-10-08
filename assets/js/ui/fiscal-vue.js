@@ -1,7 +1,30 @@
 /* fiscal-vue.js — récapitulatif annuel, imprimable (PDF via l'impression du navigateur). */
-import { usd, eur, signe, nombre, dateParis, html, lienTx, lienAdresse } from "./format.js";
+import { usd, eur, signe, nombre, parts, dateParis, html, lienTx, lienAdresse } from "./format.js";
 
-export function fiscalVue(racine, a, recaps, { surImpression } = {}) {
+/** Fin de journée (23:59:59) à Paris pour une date AAAA-MM-JJ, en secondes UTC. */
+export function finDeJourneeParis(date) {
+  // Le décalage de Paris (UTC+1 ou UTC+2) est déterminé pour cette date précise.
+  for (const decalage of ["+02:00", "+01:00"]) {
+    const ts = Math.floor(Date.parse(`${date}T23:59:59${decalage}`) / 1000);
+    const p = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" }).formatToParts(new Date(ts * 1000));
+    const v = t => p.find(x => x.type === t).value;
+    if (`${v("year")}-${v("month")}-${v("day")}` === date && v("hour") === "23") return ts;
+  }
+  return null;
+}
+
+function blocDate(r) {
+  const defaut = r.anneeTerminee ? `${r.annee}-12-31` : new Date().toISOString().slice(0, 10);
+  return `<h3>Positions détenues à une date</h3>
+    <p class="muted" style="font-size:13px">Rejoue l'historique jusqu'à la fin de la journée choisie (heure de Paris) et valorise chaque position :
+      valeur de résolution si le marché était déjà tranché, sinon dernier prix publié par Polymarket à cette heure-là. Les combinés n'ont pas
+      d'historique de prix : ils restent « non valorisés », avec leur coût. Information, non comptée dans le réalisé.</p>
+    <div class="cs-actions cs-noprint"><label for="cs-date-val" style="margin:0">Date <input type="text" id="cs-date-val" value="${defaut}" placeholder="AAAA-MM-JJ" style="max-width:150px"></label>
+      <button class="btn ghost" type="button" id="cs-valoriser">Valoriser</button></div>
+    <div id="cs-val-resultat" role="status"></div>`;
+}
+
+export function fiscalVue(racine, a, recaps, { surImpression, valoriser } = {}) {
   if (!recaps.length) { racine.innerHTML = ""; return; }
   const choix = recaps.at(-1).annee;
   racine.innerHTML = `
@@ -43,16 +66,38 @@ export function fiscalVue(racine, a, recaps, { surImpression } = {}) {
       </tbody></table></div></details>
       <p class="muted" style="font-size:12.5px">Les dépôts Polymarket arrivent sous forme de pUSD frappé sur le wallet : leur provenance n'est pas lisible sur Polygon.
         Pour un retrait, la contrepartie est l'adresse de sortie sur Polygon (souvent un pont), pas la destination finale.</p>
-      <h3>Positions détenues ${r.anneeTerminee ? "au 31 décembre" : "à la date du relevé"}</h3>
-      <p style="font-size:13.5px">${r.anneeTerminee
-        ? "Année close : la valorisation au 31 décembre demande les prix à cette date, non chargés dans cette version (voir les limites)."
-        : `Ouvertes : ${a.evaluation.ouvertes.length}, valeur ${usd(a.evaluation.valeurOuvertes)} (latent ${signe(a.evaluation.latent)}). Résolues non rachetées : ${a.evaluation.resolues.length}.`}
-        Elles sont valorisées à part et ne sont pas comptées dans le réalisé.</p>
+      ${r.anneeTerminee ? "" : `<h3>Positions détenues à la date du relevé</h3>
+      <p style="font-size:13.5px">Ouvertes : ${a.evaluation.ouvertes.length}, valeur ${usd(a.evaluation.valeurOuvertes)} (latent ${signe(a.evaluation.latent)}). Résolues non rachetées : ${a.evaluation.resolues.length}.
+        Elles sont valorisées à part et ne sont pas comptées dans le réalisé.</p>`}
+      ${valoriser ? blocDate(r) : ""}
       <h3>Hypothèses</h3><ul>${r.hypotheses.map(h => `<li>${html(h)}</li>`).join("")}</ul>
       <p class="muted" style="font-size:12.5px">Taux : série BCE ${html(r.sourceTaux.serie)} (${html(r.sourceTaux.url)}). ${r.substitutions} opération(s) datée(s) d'un jour sans fixing ont reçu le dernier taux antérieur ; le taux et sa date figurent ligne par ligne dans l'export.</p>
       <h3>Points à vérifier avec un professionnel</h3><ul>${r.pointsAVerifier.map(h => `<li>${html(h)}</li>`).join("")}</ul>
       ${r.anomalies.length ? `<div class="alerte"><b>Anomalies :</b> ${r.anomalies.map(html).join(" · ")}</div>` : ""}`;
   };
+  racine.addEventListener("click", async ev => {
+    if (ev.target.id !== "cs-valoriser") return;
+    const sortie = racine.querySelector("#cs-val-resultat"), date = racine.querySelector("#cs-date-val").value.trim();
+    const ts = /^\d{4}-\d{2}-\d{2}$/.test(date) ? finDeJourneeParis(date) : null;
+    if (!ts) { sortie.innerHTML = `<p class="cs-msg ko">✗ Date attendue au format AAAA-MM-JJ.</p>`; return; }
+    sortie.innerHTML = `<p class="cs-msg">Valorisation au ${html(date)} 23:59:59 (Paris)…</p>`;
+    try {
+      const v = await valoriser(ts);
+      const nom = p => `${html(p.marche ?? p.actif.slice(0, 24) + "…")}${p.issue ? ` · <b>${html(p.issue)}</b>` : ""}${p.combine ? ' <span class="cs-cat">combiné</span>' : ""}`;
+      sortie.innerHTML = `<ul class="steps">
+          <li><span class="lbl">Positions détenues le ${html(date)} à 23:59:59 (Paris)</span><span class="val">${v.lignes.length}</span></li>
+          <li><span class="lbl">Valeur des positions valorisées (${v.valorisees.length})</span><span class="val">${usd(v.valeur)}</span></li>
+          <li><span class="lbl">Leur coût restant</span><span class="val">${usd(v.cout)}</span></li>
+          <li><span class="lbl">Écart valeur − coût (non réalisé à cette date)</span><span class="val">${signe(v.ecart)}</span></li>
+          <li><span class="lbl">Positions non valorisées (${v.nonValorisees.length}) — coût restant</span><span class="val">${usd(v.coutNonValorise)}</span></li></ul>
+        <details class="cs-options cs-depliable"><summary>Détail par position</summary><div class="cs-table-wrap"><table class="cs-table cartes">
+          <thead><tr><th>Marché · issue</th><th>Parts</th><th>Coût restant</th><th>Valeur unitaire</th><th>Valeur</th><th>Source</th></tr></thead><tbody>
+          ${v.lignes.map(l => `<tr><td class="m" data-l="Marché · issue">${nom(l)}</td><td class="n" data-l="Parts">${parts(l.quantite)}</td><td class="n" data-l="Coût restant">${usd(l.cout)}</td>
+            <td class="n" data-l="Valeur unitaire">${l.valeurUnitaire ? html(nombre(l.valeurUnitaire, 4)) : "—"}</td><td class="n" data-l="Valeur">${usd(l.valeur)}</td>
+            <td data-l="Source" style="font-size:11.5px">${l.source ? html(l.source) + (l.observeLe ? ` (${html(dateParis(l.observeLe))})` : "") : '<span class="cs-ecart">non valorisée</span>'}</td></tr>`).join("")}
+          </tbody></table></div></details>`;
+    } catch (e) { sortie.innerHTML = `<p class="cs-msg ko">✗ ${html(e.message)}</p>`; }
+  });
   racine.querySelector("#cs-annee").addEventListener("input", ev => dessiner(ev.target.value));
   racine.querySelector("#cs-imprimer").addEventListener("click", () => surImpression?.());
   dessiner(choix);

@@ -34,3 +34,26 @@ export function evaluer(calc, { etats = new Map(), prix = new Map() } = {}) {
     coutNonValorise: somme(de("non_valorisee"), l => l.cout)
   };
 }
+
+/**
+ * Valorisation des positions détenues à un instant donné (fin d'année, ou toute date).
+ * evenements : événements normalisés ; horodatage : instant de valorisation (inclus) ;
+ * valeurs : Map actif → { valeurUnitaire: Dec, source, observeLe } fournie par le connecteur.
+ * Une position sans valeur connue est listée « non valorisée » avec son coût restant :
+ * aucune valeur n'est inventée.
+ */
+export async function evaluerAu(evenements, horodatage, valeursPour) {
+  const { calculerPositions } = await import("./positions.js");
+  const calc = calculerPositions(evenements.filter(e => e.horodatage <= horodatage));
+  const valeurs = await valeursPour(calc.ouvertes.map(p => p.actif), horodatage);
+  const lignes = calc.ouvertes.map(p => {
+    const v = valeurs.get(p.actif);
+    if (!v) return { ...p, etat: "non_valorisee", valeurUnitaire: null, valeur: null, ecart: null, source: null, observeLe: null };
+    const valeur = p.quantite.fois(v.valeurUnitaire);
+    return { ...p, etat: "valorisee", valeurUnitaire: v.valeurUnitaire, valeur, ecart: valeur.moins(p.cout), source: v.source, observeLe: v.observeLe ?? null };
+  });
+  const val = lignes.filter(l => l.etat === "valorisee"), non = lignes.filter(l => l.etat === "non_valorisee");
+  return { horodatage, lignes, valorisees: val, nonValorisees: non,
+    valeur: somme(val, l => l.valeur), cout: somme(val, l => l.cout), ecart: somme(val, l => l.ecart),
+    coutNonValorise: somme(non, l => l.cout), realiseJusque: calc.realiseTotal };
+}

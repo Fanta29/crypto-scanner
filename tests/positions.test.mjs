@@ -63,3 +63,20 @@ test("revenus et dépôts sans parts : aucun effet sur les positions", () => {
   const c = calculerPositions([ev("REBATE", [P("pUSD", "1")], []), ev("DEPOT", [P("pUSD", "100")], [])]);
   assert.equal(c.positions.length, 0);
 });
+
+test("valorisation à une date : rejoue jusqu'à cette date, n'invente aucune valeur", async () => {
+  const { evaluerAu } = await import("../assets/js/scanner/evaluation.js");
+  const evts = [
+    ev("ACHAT", [P("x:a", "10")], [P("pUSD", "4")]),
+    ev("ACHAT", [P("x:b", "10")], [P("pUSD", "6")]),
+    ev("VENTE", [P("pUSD", "5")], [P("x:a", "10")])         // après la date de valorisation
+  ];
+  const date = evts[1].horodatage;
+  const { Dec } = await import("../assets/js/scanner/decimal.js");
+  const r = await evaluerAu(evts, date, async actifs => new Map(actifs.filter(a => a === "x:a").map(a => [a, { valeurUnitaire: Dec.de("0.5"), source: "test" }])));
+  assert.equal(r.lignes.length, 2);                          // la vente postérieure n'est pas prise
+  assert.equal(r.valeur.toString(), "5");
+  assert.equal(r.ecart.toString(), "1");
+  assert.equal(r.nonValorisees[0].actif, "x:b");
+  assert.equal(r.coutNonValorise.toString(), "6");
+});

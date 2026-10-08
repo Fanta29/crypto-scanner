@@ -7,10 +7,11 @@ export function saisie(racine, { surValidation, adresseInitiale = "" }) {
     <section class="card" aria-labelledby="cs-titre-saisie">
       <p class="eyebrow">Adresse à analyser</p>
       <h2 id="cs-titre-saisie" style="margin-top:0">Wallet Polymarket (proxy wallet, Polygon)</h2>
-      <p class="muted">L'adresse affichée sur votre profil Polymarket, au format 0x… Aucune connexion de wallet n'est demandée.</p>
+      <p class="muted">L'adresse affichée sur votre profil Polymarket, au format 0x… Plusieurs adresses à vous : séparez-les par une virgule
+        ou un espace, l'outil produit une vue par adresse et une vue consolidée. Aucune connexion de wallet n'est demandée.</p>
       <form class="cs-saisie" novalidate>
         <div>
-          <label for="cs-adresse">Adresse 0x…</label>
+          <label for="cs-adresse">Adresse(s) 0x…</label>
           <input type="text" id="cs-adresse" autocomplete="off" spellcheck="false" inputmode="text" value="${html(adresseInitiale)}" aria-describedby="cs-msg-adresse">
         </div>
         <button class="btn" type="submit">Analyser</button>
@@ -18,8 +19,8 @@ export function saisie(racine, { surValidation, adresseInitiale = "" }) {
       <p class="cs-msg" id="cs-msg-adresse" role="status"></p>
       <details class="cs-options">
         <summary>Options</summary>
-        <label for="cs-mes-adresses" style="margin-top:10px">Mes autres adresses (une par ligne)
-          <span class="hint">Les mouvements avec elles sont des transferts internes, exclus des dépôts et retraits consolidés.</span></label>
+        <label for="cs-mes-adresses" style="margin-top:10px">Mes autres adresses, non analysées (une par ligne)
+          <span class="hint">Les mouvements avec elles sont des transferts internes, exclus des dépôts et retraits. Les adresses analysées le sont déjà d'office.</span></label>
         <textarea id="cs-mes-adresses" spellcheck="false"></textarea>
         <div class="form-grid">
           <div><label for="cs-seuil">Seuil d'écart de réconciliation (USD)
@@ -31,11 +32,16 @@ export function saisie(racine, { surValidation, adresseInitiale = "" }) {
     </section>`;
   const champ = racine.querySelector("#cs-adresse"), msg = racine.querySelector("#cs-msg-adresse");
   const verifier = () => {
-    const v = validerAdresseEvm(champ.value);
-    if (!champ.value.trim()) { msg.textContent = ""; msg.className = "cs-msg"; return v; }
-    msg.className = "cs-msg " + (v.valide ? "ok" : "ko");
-    msg.textContent = v.valide ? (v.controle === "exact" ? "✓ Somme de contrôle EIP-55 vérifiée." : "✓ Format valide (adresse sans casse de contrôle : somme EIP-55 non vérifiable).") : "✗ " + v.raison;
-    return v;
+    const saisies = champ.value.split(/[\s,;]+/).filter(Boolean);
+    if (!saisies.length) { msg.textContent = ""; msg.className = "cs-msg"; return { valide: false, adresses: [] }; }
+    const res = saisies.map(x => ({ x, v: validerAdresseEvm(x) }));
+    const ko = res.filter(r => !r.v.valide);
+    const adresses = [...new Set(res.filter(r => r.v.valide).map(r => r.v.adresse))];
+    if (ko.length) { msg.className = "cs-msg ko"; msg.textContent = ko.map(r => `✗ ${r.x.slice(0, 14)}… : ${r.v.raison}`).join(" "); return { valide: false, adresses }; }
+    msg.className = "cs-msg ok";
+    msg.textContent = adresses.length > 1 ? `✓ ${adresses.length} adresses valides : une vue par adresse et une vue consolidée.`
+      : res[0].v.controle === "exact" ? "✓ Somme de contrôle EIP-55 vérifiée." : "✓ Format valide (adresse sans casse de contrôle : somme EIP-55 non vérifiable).";
+    return { valide: true, adresses };
   };
   champ.addEventListener("input", verifier);
   racine.querySelector("form").addEventListener("submit", ev => {
@@ -45,7 +51,7 @@ export function saisie(racine, { surValidation, adresseInitiale = "" }) {
     const autres = racine.querySelector("#cs-mes-adresses").value.split(/\s+/).filter(Boolean);
     const invalides = autres.filter(a => !validerAdresseEvm(a).valide);
     if (invalides.length) { msg.className = "cs-msg ko"; msg.textContent = `✗ Adresse(s) invalide(s) dans les options : ${invalides.join(", ")}`; return; }
-    surValidation({ adresse: v.adresse, mesAdresses: new Set(autres.map(a => a.toLowerCase())),
+    surValidation({ adresses: v.adresses, mesAdresses: new Set([...autres.map(a => a.toLowerCase()), ...v.adresses]),
       seuil: racine.querySelector("#cs-seuil").value || "0", rafraichir: racine.querySelector("#cs-rafraichir").checked });
   });
   if (adresseInitiale) verifier();

@@ -163,3 +163,14 @@ export function valoriseur(bruts, { transport, signal, parallele = 4 } = {}) {
     return resultat;
   };
 }
+
+/** Fusion des données brutes de plusieurs adresses, pour les états de résolution et les prix. */
+export function fusionner(brutsListe) {
+  return {
+    adresse: brutsListe.map(b => b.adresse).join("+"),
+    activite: brutsListe.flatMap(b => b.activite || []),
+    resolutions: brutsListe.flatMap(b => b.resolutions || []),
+    positions: { OPEN: brutsListe.flatMap(b => b.positions?.OPEN || []), CLOSED: brutsListe.flatMap(b => b.positions?.CLOSED || []) },
+    positionsCombos: brutsListe.flatMap(b => b.positionsCombos || [])
+  };
+}

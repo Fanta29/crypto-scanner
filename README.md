@@ -108,8 +108,10 @@ sans arrondi intermédiaire.
   partiel (jambe annulée) est pris tel que réglé on-chain.
 - **Chiffres Polymarket** (`/v2/user-stats`) : définitions non documentées ; ils servent de point
   de comparaison. Leur PnL diffère du résultat calculé ici (voir `docs/CONSTATS.md`, § 8).
-- **Une seule adresse** analysée à la fois ; les autres adresses de l'utilisateur servent seulement
-  à reconnaître les transferts internes.
+- **Plusieurs adresses** : saisies ensemble (séparées par une virgule ou un espace), elles donnent
+  une vue par adresse et une vue consolidée. Un transfert entre deux de vos adresses (pUSD ou parts)
+  n'est ni un dépôt, ni un retrait, ni une vente : les parts gardent leur coût. Si l'adresse
+  d'origine n'est pas analysée, le coût des parts reçues est inconnu (retenu à 0, signalé).
 - **Débit Etherscan** : offre gratuite limitée à quelques appels par seconde et par clé, partagée
   entre tous les utilisateurs du déploiement.
 - **XLSX** : un tableur lit les nombres en flottant (15 chiffres significatifs) ; le CSV fait foi.

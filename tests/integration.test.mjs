@@ -51,3 +51,12 @@ test("chaque événement porte un hash, une date, une catégorie ; chaque positi
   const fermees = a.positions.soldees.filter(p => !p.evenements.some(id => /MIGRATION|CONVERSION/.test(id)));
   for (const p of fermees) assert.ok(p.realise.moins(p.recu.moins(p.paye)).abs().inf("0.000000001"), p.actif);
 });
+
+test("consolidé d'une seule adresse = analyse de cette adresse (non-régression)", { skip: ignorer }, async () => {
+  const { consolider } = await import("../assets/js/scanner/consolidation.js");
+  const a = analyser(pm, f);
+  const c = consolider(pm, [a], [f]);
+  for (const k of ["realiseOperations", "constateResolu", "revenus", "global", "latent", "frais"]) assert.equal(c.pnl[k].toString(), a.pnl[k].toString(), k);
+  assert.equal(c.volumes.parts.toString(), a.volumes.parts.toString());
+  assert.equal(c.controle.equations.find(e => e.actif === "pUSD").ecart.toString(), "0");
+});

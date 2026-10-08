@@ -33,11 +33,19 @@ function repartir(total, mouvements, allocation) {
   });
 }
 
+/** Ordre de traitement : chronologique ; dans une même transaction, les sorties internes
+    de parts passent avant les entrées internes (le coût doit partir avant d'arriver). */
+function ordonner(evenements) {
+  const rang = e => (e.categorie === "TRANSFERT_INTERNE" ? (e.sorties.some(m => !STABLES.has(m.actif)) ? 0 : 1) : 0);
+  return trier(evenements).sort((a, b) => (a.horodatage === b.horodatage && a.hash === b.hash ? rang(a) - rang(b) : 0));
+}
+
 export function calculerPositions(evenements) {
   const pos = new Map();          // actif → position
   const realisations = [];        // { evenement, horodatage, actif, produit, cout, realise }
   const anomalies = [];
   const conditionDe = new Map();  // actif → conditionId (pour solderCondition)
+  const transit = new Map();      // « hash|actif » → { quantite, cout } : parts en cours de transfert interne
 
   const get = (actif, e) => {
     if (!pos.has(actif)) {
@@ -48,9 +56,37 @@ export function calculerPositions(evenements) {
     return pos.get(actif);
   };
 
-  for (const e of trier(evenements)) {
+  for (const e of ordonner(evenements)) {
     let sortiesParts = e.sorties.filter(m => !STABLES.has(m.actif));
     const entreesParts = e.entrees.filter(m => !STABLES.has(m.actif));
+
+    // Transfert interne de parts : le coût suit les parts, rien n'est réalisé.
+    if (e.categorie === "TRANSFERT_INTERNE" && (sortiesParts.length || entreesParts.length)) {
+      for (const m of sortiesParts) {
+        const p = get(m.actif, e); p.dernier = e.horodatage; p.evenements.push(e.id);
+        const c = p.quantite.estZero() ? Dec.ZERO : p.cout.fois(m.quantite.min(p.quantite)).divise(p.quantite);
+        if (m.quantite.sup(p.quantite)) anomalies.push(anomalie("erreur", "survente", `${e.id} : transfert de ${m.quantite} parts alors que ${p.quantite} sont détenues`, [e.hash]));
+        p.quantite = p.quantite.moins(m.quantite); p.cout = p.cout.moins(c);
+        if (p.quantite.estZero()) p.cloture = e.horodatage;
+        const k = `${e.hash}|${m.actif}`, t = transit.get(k) || { quantite: Dec.ZERO, cout: Dec.ZERO };
+        transit.set(k, { quantite: t.quantite.plus(m.quantite), cout: t.cout.plus(c) });
+      }
+      for (const m of entreesParts) {
+        const p = get(m.actif, e); p.dernier = e.horodatage; p.evenements.push(e.id);
+        const k = `${e.hash}|${m.actif}`, t = transit.get(k);
+        let c = Dec.ZERO;
+        if (t && !t.quantite.estZero()) {
+          c = t.cout.fois(m.quantite.min(t.quantite)).divise(t.quantite);
+          transit.set(k, { quantite: t.quantite.moins(m.quantite), cout: t.cout.moins(c) });
+        } else {
+          anomalies.push(anomalie("alerte", "cout_transfert_inconnu", `${e.id} : parts reçues d'une autre de vos adresses, non analysée ici — coût d'origine inconnu, retenu à 0`, [e.hash]));
+        }
+        p.quantite = p.quantite.plus(m.quantite); p.cout = p.cout.plus(c); p.cloture = null;
+        if (e.position?.marche && !p.marche) p.marche = e.position.marche;
+        if (m.libelle && !p.issue) p.issue = m.libelle;
+      }
+      continue;
+    }
     // Rachat sans données de parts : on solde toutes les positions de la condition.
     if (e.position?.solderCondition && sortiesParts.length === 0) {
       sortiesParts = [...pos.values()].filter(p => p.conditionId === e.position.solderCondition && p.quantite.signe() > 0)

@@ -9,7 +9,7 @@ function telecharger(nom, contenu, type) {
 }
 
 export function exportsVue(racine, a, recaps, taux) {
-  const base = `polymarket-${a.adresse.slice(0, 8)}-${(a.recupereLe || new Date().toISOString()).slice(0, 10)}`;
+  const base = `polymarket-${a.consolide ? "consolide" : a.adresse.slice(0, 8)}-${(a.recupereLe || new Date().toISOString()).slice(0, 10)}`;
   racine.innerHTML = `<section class="card" aria-labelledby="cs-t-exp">
     <p class="eyebrow">Exports</p><h2 id="cs-t-exp" style="margin-top:0">Télécharger</h2>
     <div class="cs-actions">

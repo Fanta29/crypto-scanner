@@ -317,7 +317,13 @@ export function normaliser(bruts, { mesAdresses = new Set() } = {}) {
     const versProtocole = [...vers].every(v => CONTRATS[v]);
     let cat = "INCONNU", sousType = "ONCHAIN_SEUL", notes = ["Transaction présente on-chain, absente de la Data API."];
     let contrepartie = null, montantUsd = Dec.ZERO;
-    if (sortiesParts.length > 0 && entrees.length === 0 && especes.length === 0 && versProtocole) {
+    const deParts = new Set(oc.transferts.filter(t => estPart(t.actif) && t.vers === adresse).map(t => t.de));
+    const autresMiennes = [...vers, ...deParts].filter(x => mesAdresses.has(x));
+    if (parts.length > 0 && especes.length === 0 && autresMiennes.length > 0
+        && [...vers, ...deParts].every(x => mesAdresses.has(x))) {
+      cat = "TRANSFERT_INTERNE"; sousType = "PARTS"; contrepartie = autresMiennes[0];
+      notes.push("Parts transférées entre deux de vos adresses : ni vente ni achat, le coût suit les parts.");
+    } else if (sortiesParts.length > 0 && entrees.length === 0 && especes.length === 0 && versProtocole) {
       cat = "REDEEM_PERDANT"; sousType = "ONCHAIN_SEUL";
       notes.push("Parts remises à un contrat Polymarket sans paiement : traité comme un rachat à 0 (position perdante soldée).");
     } else if (parts.length === 0 && especes.length > 0) {
@@ -337,7 +343,7 @@ export function normaliser(bruts, { mesAdresses = new Set() } = {}) {
       ...BASE, id: `oc:${h}`, adresse, horodatage: oc.horodatage, bloc: oc.bloc, hash: h,
       categorie: cat, sousType, entrees, sorties, montantUsd, contrepartie,
       interne: cat === "TRANSFERT_INTERNE",
-      position: sortiesParts.length ? { marche: null, conditionId: null, tokenId: sortiesParts[0].actif.split(":")[1], issue: sortiesParts[0].libelle ?? null, combine: false, registre: sortiesParts[0].actif.split(":")[0] } : null,
+      position: (() => { const m = sortiesParts[0] ?? entrees.find(x => estPart(x.actif)); return m ? { marche: null, conditionId: null, tokenId: m.actif.split(":")[1], issue: m.libelle ?? null, combine: false, registre: m.actif.split(":")[0] } : null; })(),
       origine: "onchain", sourceBrute: { source: "etherscan", hash: h }, notes
     }));
   }

@@ -21,6 +21,8 @@ Un connecteur est un module ES qui exporte :
 | `controler(bruts, norm, calc)` | → `controle[]` | contrôles propres à la source (rapprochements, chiffres publiés par la plateforme) |
 | `etatsResolution(bruts)` | → `Map<actif, etat>` | facultatif : valeur de résolution des positions (marchés tranchés) |
 | `prixCourants(bruts)` | → `Map<actif, Dec>` | facultatif : prix courant des positions ouvertes |
+| `valoriseur(bruts, options)` | → `async (actifs, horodatage) → Map<actif, { valeurUnitaire, source, observeLe }>` | facultatif : valeur à une date passée (31 décembre…) ; ne renvoie rien pour un actif sans valeur connue |
+| `fusionner(brutsListe)` | → `bruts` | requis pour la vue consolidée : réunit ce dont `etatsResolution`, `prixCourants` et `valoriseur` ont besoin |
 
 `options` de `recuperer` : `transport` (fonction `fetch`, injectable pour les tests), `signal`
 (`AbortSignal`), `progression({ etape, detail })`, `cache` (pour l'incrémental), et les clients
@@ -67,7 +69,9 @@ Règles :
   issues), `position.allocation = { actif: poids }` indique à qui revient le produit. Sans
   allocation, répartition au prorata des quantités.
 - **Transferts internes.** Catégorie `TRANSFERT_INTERNE`, `interne: true` : comptés dans le flux de
-  l'adresse (son solde change), exclus des dépôts et retraits du consolidé multi-adresses.
+  l'adresse (son solde change), exclus des dépôts et retraits du consolidé multi-adresses. Des
+  parts transférées entre adresses gardent leur coût : le moteur rapproche la sortie et l'entrée
+  par le hash de la transaction (`consolidation.js`).
 - **Jamais d'oubli silencieux.** Une donnée non reconnue devient un événement `INCONNU` ou une
   anomalie. Un mouvement on-chain absent de l'API devient un événement d'origine `onchain`.
 - **Montants exacts.** Aucun flottant pour l'argent : `Dec` partout ; les nombres JSON sont lus par

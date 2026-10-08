@@ -80,7 +80,7 @@
 .cs-legende .l-perte{background:repeating-linear-gradient(45deg,var(--perte) 0 2px,var(--perte-bg) 2px 5px)}
 
 /* -------------------------------------------------------------- tables --- */
-.cs-table-wrap{overflow-x:auto;margin:10px 0}
+.cs-table-wrap{overflow-x:auto;margin:10px 0;position:relative}   /* relative : contient le texte .cs-sr (absolu) */
 .cs-table{border-collapse:collapse;width:100%;font-size:13px}
 .cs-table th,.cs-table td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);color:var(--ink-2);vertical-align:top}
 .cs-table th{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);white-space:nowrap}

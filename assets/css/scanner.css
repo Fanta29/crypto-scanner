@@ -1,0 +1,142 @@
+/* =====================================================================
+   Crypto Scanner — ajouts à la feuille du site de formation (app.css,
+   copiée telle quelle). Toutes les classes sont préfixées « cs- » pour
+   éviter toute collision à l'intégration. Aucune couleur nouvelle : les
+   jetons ci-dessous sont des alias des variables du site.
+   ================================================================== */
+
+:root{
+  --gain:var(--ok);   --gain-bg:var(--ok-bg);
+  --perte:var(--ko);  --perte-bg:var(--ko-bg);
+  --ecart:var(--warn); --ecart-bg:var(--warn-bg);
+  --serie-1:var(--accent); --serie-2:var(--ok); --serie-3:var(--warn);
+  --cs-gouttiere:16px;
+}
+
+/* ------------------------------------------------------------- saisie --- */
+.cs-saisie{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.cs-saisie>div{flex:1 1 320px;min-width:0}
+.cs-saisie input{font-size:14px}
+.cs-msg{font-size:13px;margin:8px 0 0;color:var(--muted)}
+.cs-msg.ko{color:var(--perte)}
+.cs-msg.ok{color:var(--gain)}
+.cs-options{margin-top:10px;font-size:13px;color:var(--muted)}
+.cs-options summary{cursor:pointer;color:var(--ink-2)}
+.cs-options textarea{width:100%;min-height:70px;margin-top:8px;padding:10px 12px;border:1px solid var(--line-2);
+  border-radius:var(--r-s);background:var(--bg-2);color:var(--ink);font-family:"JetBrains Mono",monospace;font-size:13px}
+
+/* -------------------------------------------------------- progression --- */
+.cs-progression{margin-top:16px}
+.cs-progression .bar{margin:10px 0 8px}
+.cs-progression ol{list-style:none;margin:0;padding:0;font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--muted)}
+.cs-progression li.fait{color:var(--ink-2)}
+.cs-progression li.encours{color:var(--accent-2)}
+
+/* -------------------------------------------------------------- chiffres --- */
+.cs-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:14px 0}
+.cs-kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;min-width:0}
+.cs-kpi .k{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.cs-kpi .v{font-family:"JetBrains Mono",monospace;font-size:22px;font-weight:500;color:var(--ink);margin-top:6px;overflow-wrap:anywhere}
+.cs-kpi .d{font-size:12.5px;color:var(--muted);margin-top:4px}
+.cs-gain{color:var(--gain)}
+.cs-perte{color:var(--perte)}
+.cs-ecart{color:var(--ecart)}
+.cs-mono{font-family:"JetBrains Mono",monospace}
+
+/* ------------------------------------------------------ réconciliation --- */
+.cs-recon{list-style:none;margin:0;padding:0}
+.cs-recon li{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.cs-recon li:last-child{border-bottom:0}
+.cs-recon .ic{font-family:"JetBrains Mono",monospace;font-weight:600;min-width:7.5em;font-size:12px;letter-spacing:.04em}
+.cs-recon .ok .ic{color:var(--gain)}
+.cs-recon .ecart .ic{color:var(--perte)}
+.cs-recon .explique .ic,.cs-recon .info .ic{color:var(--ecart)}
+.cs-recon .non_fait .ic{color:var(--muted)}
+.cs-recon .lib{color:var(--ink);font-size:14px}
+.cs-recon .det{grid-column:2;font-size:12.5px;color:var(--muted)}
+.cs-recon .det .cs-mono{color:var(--ink-2)}
+.cs-recon details{grid-column:2;font-size:12px}
+.cs-recon details summary{cursor:pointer;color:var(--accent-2)}
+.cs-recon details ul{margin:6px 0 0;padding-left:18px;font-family:"JetBrains Mono",monospace;overflow-wrap:anywhere}
+.cs-bandeau{display:flex;gap:12px;align-items:center;padding:14px 18px;border-radius:var(--r);margin:14px 0;font-size:14px}
+.cs-bandeau.ok{background:var(--gain-bg);border:1px solid var(--gain)}
+.cs-bandeau.ecart{background:var(--perte-bg);border:1px solid var(--perte)}
+.cs-bandeau .ic{font-size:20px;line-height:1}
+
+/* ---------------------------------------------------------- graphiques --- */
+.cs-graph{width:100%;height:auto;display:block}
+.cs-graph .axe{stroke:var(--line-2);stroke-width:1}
+.cs-graph .grille{stroke:var(--line);stroke-width:1}
+.cs-graph text{fill:var(--muted);font-family:"JetBrains Mono",monospace;font-size:10px}
+.cs-graph .serie-1{fill:var(--serie-1)}
+.cs-graph .gain{fill:var(--gain)}
+.cs-graph .perte{fill:url(#cs-hachures)}
+.cs-graph .hachure-fond{fill:var(--perte-bg)}
+.cs-graph .hachure-trait{stroke:var(--perte);stroke-width:2}
+.cs-legende{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:6px 0 0}
+.cs-legende i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.cs-legende .l-1{background:var(--serie-1)}
+.cs-legende .l-gain{background:var(--gain)}
+.cs-legende .l-perte{background:repeating-linear-gradient(45deg,var(--perte) 0 2px,var(--perte-bg) 2px 5px)}
+
+/* -------------------------------------------------------------- tables --- */
+.cs-table-wrap{overflow-x:auto;margin:10px 0}
+.cs-table{border-collapse:collapse;width:100%;font-size:13px}
+.cs-table th,.cs-table td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);color:var(--ink-2);vertical-align:top}
+.cs-table th{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);white-space:nowrap}
+.cs-table td.n{font-family:"JetBrains Mono",monospace;text-align:right;white-space:nowrap;color:var(--ink)}
+.cs-table td.t{font-family:"JetBrains Mono",monospace;font-size:11.5px;white-space:nowrap}
+.cs-table td.m{max-width:340px}
+.cs-table tr.total td{background:var(--surface-2);font-weight:600}
+.cs-cat{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.06em;padding:2px 7px;border-radius:99px;
+  background:var(--surface-3);color:var(--ink-2);white-space:nowrap}
+.cs-cat.INCONNU{background:var(--perte-bg);color:var(--perte)}
+.cs-filtres{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:10px 0}
+.cs-pagination{display:flex;gap:8px;align-items:center;justify-content:flex-end;font-size:12.5px;color:var(--muted);margin-top:8px}
+.cs-pagination button{font:inherit;padding:6px 12px;border-radius:99px;border:1px solid var(--line-2);background:transparent;color:var(--ink-2);cursor:pointer}
+.cs-pagination button:disabled{opacity:.4;cursor:default}
+.cs-onglets{display:flex;gap:6px;flex-wrap:wrap;margin:18px 0 6px}
+.cs-actions{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+
+/* Mobile d'abord : sous 640 px, chaque ligne devient une carte. */
+@media (max-width:640px){
+  .wrap{padding-left:var(--cs-gouttiere);padding-right:var(--cs-gouttiere)}
+  .card{padding:18px 16px}
+  .cs-table.cartes thead{display:none}
+  .cs-table.cartes,.cs-table.cartes tbody,.cs-table.cartes tr,.cs-table.cartes td{display:block;width:100%}
+  .cs-table.cartes tr{border:1px solid var(--line);border-radius:var(--r-s);margin:0 0 10px;padding:6px 10px;background:var(--surface)}
+  .cs-table.cartes td{border:0;padding:4px 0;text-align:left;white-space:normal;max-width:none}
+  .cs-table.cartes td::before{content:attr(data-l);display:block;font-family:"JetBrains Mono",monospace;font-size:9.5px;
+    letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .cs-actions .btn{width:100%}
+  .cs-recon li{grid-template-columns:1fr}
+  .cs-recon .det,.cs-recon details{grid-column:1}
+}
+
+/* ----------------------------------------------------- impression (PDF) ---
+   Le récapitulatif fiscal s'imprime en feuille claire, sur le modèle du mode
+   lecture des chapitres du site. Seule la section marquée « cs-imprimable »
+   apparaît. */
+@media print{
+  :root{--bg:#FFFFFF;--bg-2:#F2F3F7;--surface:#FFFFFF;--surface-2:#F2F3F7;--surface-3:#E4E7EC;
+    --ink:#14171D;--ink-2:#22262E;--muted:#5B6270;--line:#E4E7EC;--line-2:#C9CEDA;
+    --accent:#5B6AD6;--accent-2:#3A4BC8;--ok:#1E7A4F;--ko:#B3261E;--warn:#8A5A00;
+    --ok-bg:#FFFFFF;--ko-bg:#FFFFFF;--warn-bg:#FFFFFF}
+  html,body{background:#FFFFFF}
+  body.cs-impression>*:not(main),body.cs-impression main>*:not(.cs-imprimable):not(:has(.cs-imprimable)){display:none!important}
+  .cs-imprimable{border:0;padding:0;margin:0}
+  .cs-imprimable .cs-actions,.cs-imprimable .cs-noprint{display:none!important}
+  .cs-table{font-size:9.5px;table-layout:auto}
+  .cs-table-wrap{overflow:visible}
+  .cs-table td.n,.cs-table td.t,.cs-table th{white-space:normal;overflow-wrap:anywhere}
+  .cs-table th,.cs-table td{padding:4px 6px}
+  a{color:var(--ink-2)}
+  @page{margin:16mm 14mm}
+}
+
+/* Texte réservé aux lecteurs d'écran (sens d'un montant signé, par exemple). */
+.cs-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* Liste de couverture du rapport : les valeurs longues (périodes) passent à la ligne. */
+.cs-steps li{flex-wrap:wrap}
+.cs-steps li .val{white-space:normal;text-align:right;overflow-wrap:anywhere}

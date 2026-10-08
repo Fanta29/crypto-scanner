@@ -108,3 +108,17 @@ test("sans données on-chain : mode dégradé signalé, parts du trade prises da
   assert.ok(n.anomalies.some(a => a.code === "sans_onchain"));
   assert.equal(n.evenements[0].entrees[0].actif, "api:111");
 });
+
+test("volume : écart dû aux trades les plus récents non encore agrégés par Polymarket → « expliqué », pas « conforme »", async () => {
+  const { controler } = await import("../assets/js/scanner/connecteurs/polymarket-polygon/controles.js");
+  const { calculerPositions } = await import("../assets/js/scanner/positions.js");
+  const b = bruts({ activite: [achat(1), achat(2)], onchain: false });
+  const n = normaliser(b);
+  b.volume = { volume: 100, volume_usdc: 40, trade_count: 1 };     // Polymarket ne voit que le premier achat
+  const c = controler(b, n, calculerPositions(n.evenements));
+  const v = c.find(x => x.id === "volume_parts");
+  assert.equal(v.statut, "explique");
+  assert.deepEqual(v.refs, [hashDe(2)]);
+  b.volume = { volume: 150, volume_usdc: 40, trade_count: 1 };     // écart sans explication exacte → reste en écart
+  assert.equal(controler(b, n, calculerPositions(n.evenements)).find(x => x.id === "volume_parts").statut, "ecart");
+});

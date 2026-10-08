@@ -3,19 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Crypto Scanner — en construction</title>
-<style>
-  :root{--bg:#0B0D11;--ink:#F2F4F8;--muted:#8892A2;--accent-2:#A5B0FF}
-  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,sans-serif;
-    display:grid;place-items:center;min-height:100dvh;padding:16px;text-align:center}
-  p{color:var(--muted)} a{color:var(--accent-2)}
-</style>
+<meta name="theme-color" content="#0B0D11">
+<meta name="description" content="Historique Polymarket réconcilié avec la blockchain Polygon, volumes, résultats et récapitulatif annuel en euros. Outil en lecture seule.">
+<title>Crypto Scanner — Polymarket</title>
+<link rel="icon" href="assets/icone.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/app.css">
+<link rel="stylesheet" href="assets/css/scanner.css">
 </head>
 <body>
-<main>
-  <h1>Crypto Scanner</h1>
-  <p>Phase 1 (Polymarket) en cours de conception. Outil en lecture seule.</p>
-  <p><a href="api/sante">Contrôle de configuration</a></p>
-</main>
+<main class="wrap" id="app"></main>
+<noscript><p class="wrap">Cet outil nécessite JavaScript.</p></noscript>
+<script type="module" src="assets/js/scanner.js"></script>
 </body>
 </html>

@@ -17,14 +17,30 @@ export function controler(bruts, norm, calc) {
   const v = [];
   const trades = norm.evenements.filter(e => e.categorie === "ACHAT" || e.categorie === "VENTE");
 
-  // Volume : notre recalcul contre /v2/user-volume.
+  // Volume : notre recalcul contre /v2/user-volume. Polymarket agrège avec un léger retard :
+  // si l'écart correspond exactement aux k trades les plus récents, il est « expliqué ».
+  const tolNotionnel = Dec.de("0.000001").fois(trades.length || 1);   // arrondi à 6 décimales de chaque parts × prix
   const parts = somme(trades, e => e.parts ?? 0);
   const notionnel = somme(trades, e => e.notionnelUsd ?? 0);
-  v.push(verif("volume_parts", "Volume en parts (achats + ventes) = /v2/user-volume.volume", bruts.volume?.volume ?? null, parts,
-    { detail: "Définition Polymarket du volume affiché sur le profil : parts, deux côtés." }));
-  v.push(verif("volume_notionnel", "Notionnel Σ parts × prix = /v2/user-volume.volume_usdc", bruts.volume?.volume_usdc ?? null, notionnel,
-    { tolerance: Dec.de("0.000001").fois(trades.length || 1), detail: "Écart toléré : arrondi à 6 décimales de chaque produit parts × prix." }));
-  v.push(verif("nombre_trades", "Nombre de trades = /v2/user-volume.trade_count", bruts.volume?.trade_count ?? null, trades.length));
+  const vol = bruts.volume;
+  let retard = null;
+  if (vol && !(parts.egal(vol.volume) && trades.length === vol.trade_count)) {
+    const recents = [...trades].sort((a, b) => b.horodatage - a.horodatage || (b.bloc ?? 0) - (a.bloc ?? 0));
+    for (let k = 1; k <= Math.min(50, recents.length); k++) {
+      const reste = recents.slice(k);
+      if (reste.length === vol.trade_count && somme(reste, e => e.parts).egal(vol.volume)
+        && somme(reste, e => e.notionnelUsd ?? 0).moins(vol.volume_usdc).abs().inf(tolNotionnel)) {
+        retard = recents.slice(0, k); break;
+      }
+    }
+  }
+  const explication = retard ? `Les chiffres de Polymarket n'incluent pas encore les ${retard.length} trade(s) les plus récents (depuis le ${new Date(Math.min(...retard.map(e => e.horodatage)) * 1000).toISOString().slice(0, 19).replace("T", " ")} UTC) : sans eux, le recalcul est identique à l'unité près.` : null;
+  const avecRetard = c => (retard && c.statut === "ecart" ? { ...c, statut: "explique", explication, refs: retard.map(e => e.hash) } : c);
+  v.push(avecRetard(verif("volume_parts", "Volume en parts (achats + ventes) = /v2/user-volume.volume", vol?.volume ?? null, parts,
+    { detail: "Définition Polymarket du volume affiché sur le profil : parts, deux côtés." })));
+  v.push(avecRetard(verif("volume_notionnel", "Notionnel Σ parts × prix = /v2/user-volume.volume_usdc", vol?.volume_usdc ?? null, notionnel,
+    { tolerance: tolNotionnel, detail: "Écart toléré : arrondi à 6 décimales de chaque produit parts × prix." })));
+  v.push(avecRetard(verif("nombre_trades", "Nombre de trades = /v2/user-volume.trade_count", vol?.trade_count ?? null, trades.length)));
 
   // Espèces, transaction par transaction.
   if (bruts.onchain) {

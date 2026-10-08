@@ -33,9 +33,9 @@ export function analyser(connecteur, bruts, { mesAdresses = new Set(), seuil = "
   return {
     adresse: bruts.adresse, recupereLe: bruts.recupereLe ?? null, soldesLe: bruts.soldes?.capturesLe ?? null,
     evenements: evts, positions: calc, evaluation: evalue, volumes: vol, pnl,
-    mensuel: parPeriode(evts, calc.realisations, "mois"),
-    annuel: parPeriode(evts, calc.realisations, "annee"),
-    parMarche: parCategorieMarche(evts, calc.realisations),
+    mensuel: parPeriode(evts, calc.realisations, "mois", "Europe/Paris", evalue.resolues),
+    annuel: parPeriode(evts, calc.realisations, "annee", "Europe/Paris", evalue.resolues),
+    parMarche: parCategorieMarche(evts, calc.realisations, evalue.resolues),
     controle, soldes,
     reference: { volume: bruts.volume ?? null, stats: bruts.stats ?? null, valeur: bruts.valeur ?? null }
   };

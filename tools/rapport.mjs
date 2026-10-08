@@ -1,0 +1,73 @@
+// tools/rapport.mjs — produit le rapport de réconciliation (Markdown) à partir des fixtures
+// d'une adresse : aucun chiffre du rapport n'est saisi à la main.
+// Usage : node tools/rapport.mjs [adresse] > docs/RAPPORT-ADRESSE-TEST.md
+import { readFileSync } from "node:fs";
+import { chargerFixtures } from "../tests/aides/fixtures.mjs";
+import * as pm from "../assets/js/scanner/connecteurs/polymarket-polygon/index.js";
+import { analyser } from "../assets/js/scanner/analyse.js";
+import { recapitulatifs } from "../assets/js/scanner/fiscal.js";
+import { lireCsvBce } from "../assets/js/scanner/sources/bce.js";
+import { somme } from "../assets/js/scanner/decimal.js";
+import { dateHeureDans } from "../assets/js/scanner/modele.js";
+
+const f = chargerFixtures(process.argv[2]);
+if (!f) { console.error("fixtures absentes"); process.exit(1); }
+const a = analyser(pm, f);
+const taux = lireCsvBce(readFileSync("tests/donnees/bce-usd-eur-2026-06-01_2026-10-08.csv", "utf8"));
+const r = recapitulatifs(a, taux).at(-1);
+const x = (d, n = 2) => (d === null || d === undefined ? "—" : d.aFixe(n));
+const pmS = f.stats.all_time_pnl;
+const L = [];
+const p = s => L.push(s);
+p(`# Rapport de réconciliation — adresse de test\n`);
+p(`Adresse \`${f.adresse}\` · capture du ${f.soldes.capturesLe} (soldes lus juste après les transferts on-chain).`);
+p(`Généré par \`node tools/rapport.mjs\` à partir des fixtures : aucun chiffre n'est saisi à la main.\n`);
+p(`## Statut global : ${a.controle.statut === "ok" ? "✓ aucun écart non expliqué" : "✗ " + a.controle.nombreEcarts + " écart(s)"}\n`);
+p(`| Contrôle | Statut | Attendu | Obtenu | Écart |`);
+p(`|---|---|---|---|---|`);
+for (const c of a.controle.controles) p(`| ${c.libelle} | ${c.statut} | ${c.attendu ?? "—"} | ${c.obtenu ?? "—"} | ${c.ecart ?? "—"} |`);
+p(``);
+for (const c of a.controle.controles.filter(c => c.explication || c.statut === "info")) p(`- **${c.libelle}** — ${c.explication ?? c.detail}`);
+p(`\n## Équation de flux pUSD\n`);
+const eq = a.controle.equations.find(e => e.actif === "pUSD");
+p(`| Catégorie | Opérations | Flux net (pUSD) |\n|---|---|---|`);
+for (const l of eq.lignes) p(`| ${l.libelle} | ${l.nombre} | ${x(l.montant, 6)} |`);
+p(`| **Solde calculé** | | **${x(eq.calcule, 6)}** |\n| **Solde on-chain** | | **${x(eq.observe, 6)}** |\n| **Écart** | | **${x(eq.ecart, 6)}** |`);
+const c = a.controle.couverture;
+p(`\n## Couverture\n`);
+p(`- ${c.nombre} événements, du ${dateHeureDans(c.premier, "UTC")} au ${dateHeureDans(c.dernier, "UTC")} UTC ; par origine : ${Object.entries(c.parOrigine).map(([k, v]) => `${k} ${v}`).join(", ")}.`);
+p(`- ${c.lignesLues} lignes Data API lues ; doublons retirés : ${c.doublonsRetires} ; réintégrés : ${c.doublonsReintegres}.`);
+p(`- ${c.onchainSeul} transactions on-chain sans ligne Data API (dont ${a.evenements.filter(e => e.origine === "onchain").length} devenues des événements, les autres sans effet net).`);
+p(`- Anomalies : ${a.controle.niveaux.erreur} erreur(s), ${a.controle.niveaux.alerte} alerte(s), ${a.controle.niveaux.info} information(s).`);
+for (const an of a.controle.anomalies) p(`  - ${an.niveau} · ${an.code} · ${an.message} ${an.refs.join(" ")}`);
+p(`\n## Volumes\n`);
+p(`| Définition | Valeur | Polymarket |\n|---|---|---|`);
+p(`| Parts échangées (achats + ventes) | ${x(a.volumes.parts, 6)} parts | ${f.volume.volume} (\`/v2/user-volume.volume\`) |`);
+p(`| Notionnel Σ parts × prix | ${x(a.volumes.notionnel, 6)} $ | ${f.volume.volume_usdc} (\`volume_usdc\`) |`);
+p(`| Espèces achats + ventes, frais compris | ${x(a.volumes.especes, 6)} $ | — |`);
+p(`| Espèces + rachats gagnants | ${x(a.volumes.especesEtRachats, 6)} $ | — |`);
+p(`| Nombre de trades | ${a.volumes.nombreTrades} | ${f.volume.trade_count} |`);
+p(`| Frais implicites | ${x(a.volumes.frais, 6)} $ | ${pmS.fees_paid} (\`fees_paid\`) |`);
+p(`\n## Résultat\n`);
+const depots = somme(a.evenements.filter(e => e.categorie === "DEPOT" && e.entrees.some(m => m.actif === "pUSD")), e => e.montantUsd);
+const retraits = somme(a.evenements.filter(e => e.categorie === "RETRAIT"), e => e.montantUsd);
+p(`| Rubrique | Cet outil | Polymarket (\`/v2/user-stats\`, relevé du ${dateHeureDans(pmS.timestamp, "UTC")} UTC) |\n|---|---|---|`);
+p(`| Réalisé par opérations | ${x(a.pnl.realiseOperations)} $ | |`);
+p(`| Positions résolues non rachetées | ${x(a.pnl.constateResolu)} $ | |`);
+p(`| Réalisé total | ${x(a.pnl.realiseOperations.plus(a.pnl.constateResolu))} $ | realized_pnl ${pmS.realized_pnl} |`);
+p(`| dont marchés simples | ${x(somme(a.positions.positions.filter(q => !q.combine), q => q.realise).plus(somme(a.evaluation.resolues.filter(q => !q.combine), q => q.resultat)))} $ | realized_market_pnl ${pmS.realized_market_pnl} |`);
+p(`| dont combinés | ${x(somme(a.positions.positions.filter(q => q.combine), q => q.realise).plus(somme(a.evaluation.resolues.filter(q => q.combine), q => q.resultat)))} $ | realized_combo_pnl ${pmS.realized_combo_pnl} |`);
+p(`| Latent | ${x(a.pnl.latent)} $ | unrealized_pnl ${pmS.unrealized_pnl} |`);
+p(`| Remises | ${x(a.pnl.revenus)} $ | wallet_income ${pmS.wallet_income} |`);
+p(`| **Total** | **${x(a.pnl.global.plus(a.pnl.latent))} $** | economic_pnl ${pmS.economic_pnl} |`);
+p(`\nContrôle indépendant : dépôts pUSD ${x(depots, 6)} − retraits ${x(retraits, 6)} − solde pUSD ${x(eq.observe, 6)} = **${x(depots.moins(retraits).moins(eq.observe), 6)} $ sortis de l'activité**, `
+  + `à comparer au total ci-dessus diminué de la valeur des parts encore détenues (${x(somme(a.evaluation.lignes.filter(l => l.valeur), l => l.valeur), 6)} $).`);
+p(`\n## Récapitulatif ${r.annee} (heure de Paris, taux BCE du jour)\n`);
+p(`| Rubrique | USD | EUR |\n|---|---|---|`);
+p(`| Réalisé par opérations | ${x(r.resultat.realiseOperationsUsd)} | ${x(r.resultat.realiseOperationsEur)} |`);
+p(`| Positions résolues non rachetées | ${x(r.resultat.constateUsd)} | ${x(r.resultat.constateEur)} |`);
+p(`| Remises | ${x(r.resultat.revenusUsd)} | ${x(r.resultat.revenusEur)} |`);
+p(`| **Total** | **${x(r.resultat.totalUsd)}** | **${x(r.resultat.totalEur)}** |`);
+p(`| Frais (déjà inclus) | ${x(r.frais.usd)} | ${x(r.frais.eur)} |`);
+p(`\n${r.substitutions} opérations datées d'un jour sans fixing BCE ont reçu le dernier taux antérieur. Année ${r.anneeTerminee ? "close" : "en cours au moment de la capture : chiffres provisoires"}.`);
+console.log(L.join("\n"));

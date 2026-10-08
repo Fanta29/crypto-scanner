@@ -28,6 +28,6 @@ npm test                         # tests (node:test, sans dépendance)
 | Variable | Rôle | Obligatoire |
 |---|---|---|
 | `ETHERSCAN_API_KEY` | Etherscan API V2 (multichaîne, `chainid=137` pour Polygon) | oui, pour la vérification on-chain |
-| `POLYGON_RPC_URL` | RPC Polygon (lecture de soldes et de journaux d'événements) | non |
+| `POLYGON_RPC_URL` | RPC Polygon — inutile en phase 1 (Etherscan suffit), prévu pour la suite | non |
 
 `/api/sante` indique si chaque variable est présente, sans jamais en révéler la valeur.

@@ -5,3 +5,7 @@ node_modules/
 .vercel/
 .DS_Store
 *.log
+
+# Données réelles d'adresses : hors dépôt tant que leur publication n'est pas décidée
+fixtures/0x*/
+fixtures/onchain/
